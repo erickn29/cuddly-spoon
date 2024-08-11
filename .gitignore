@@ -248,3 +248,4 @@ src/tmp_scripts/
 .pre-commit-config.yaml
 
 secrets/env/.envfile
+src/*.session
