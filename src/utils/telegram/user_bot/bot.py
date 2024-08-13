@@ -20,7 +20,7 @@ class TelegramUserBot:
     def __init__(self, phone: str) -> None:
         self.phone = phone
         self.client = TelegramClient(
-            session=f'{Path(__file__).parent}/session/79523048633',
+            session=f'{Path(__file__).parent}/session/{phone}',
             api_id=self.api_id,
             api_hash=self.api_hash,
         )
@@ -41,11 +41,23 @@ class TelegramUserBot:
             return
         await self.client.start(self.phone, code_callback=self.code_callback)
 
-    async def send_message(self, entity: str,  message: str):
-        await self.client.send_message(entity, message)
+    async def send_message_to_chat(self, event):
+        msg = event.message
+        if event.is_channel and msg.replies and msg.replies.comments:
+            await asyncio.sleep(11)
+            comments_chat_id = msg.replies.channel_id
+            messages = await self.client.get_messages(comments_chat_id)
+            if not messages:
+                return
+            last_channel_message = messages[-1]
+            await self.client.send_message(
+                entity=comments_chat_id,
+                reply_to=last_channel_message,
+                message='ok'
+            )
 
     async def send_msg(self, entity: str, message: str):
         await self.client.connect()
         await self.sign_in()
-        await self.send_message(entity, message)
+        await self.client.send_message(entity, message)
         await self.client.disconnect()
