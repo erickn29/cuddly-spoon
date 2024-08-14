@@ -74,7 +74,7 @@ class TelegramUserBot:
         await self.client.connect()
         if not await self.client.is_user_authorized():
             phone_code_hash = await self.client.send_code_request(self.phone)
-            cache.set(self.phone, phone_code_hash.phone_code_hash)
+            await cache.set(self.phone, phone_code_hash.phone_code_hash)
             await self.client.disconnect()
             return False
         await self.sign_in()
