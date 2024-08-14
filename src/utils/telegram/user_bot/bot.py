@@ -3,9 +3,12 @@ import datetime
 from pathlib import Path
 
 from telethon import TelegramClient, events
+from telethon.tl.types import User
+
 from core.config import cfg
 import logging
 
+from utils.cache import cache
 
 logging.basicConfig(
     format='[%(levelname) 5s/%(asctime)s] %(name)s: %(message)s',
@@ -39,7 +42,7 @@ class TelegramUserBot:
     async def sign_in(self):
         if await self.check_me():
             return
-        await self.client.start(self.phone, code_callback=self.code_callback)
+        await self.client.start(self.phone)
 
     async def send_message_to_chat(self, event):
         msg = event.message
@@ -56,8 +59,25 @@ class TelegramUserBot:
                 message='ok'
             )
 
-    async def send_msg(self, entity: str, message: str):
+    async def sign_in_with_code(self, code: str) -> bool:
         await self.client.connect()
+        phone_code_hash = cache.get(self.phone)
+        status = await self.client.sign_in(
+            phone=self.phone,
+            code=code,
+            phone_code_hash=phone_code_hash,
+        )
+        await self.client.disconnect()
+        return isinstance(status, User)
+
+    async def send_msg(self, entity: str, message: str) -> bool:
+        await self.client.connect()
+        if not await self.client.is_user_authorized():
+            phone_code_hash = await self.client.send_code_request(self.phone)
+            cache.set(self.phone, phone_code_hash)
+            await self.client.disconnect()
+            return False
         await self.sign_in()
         await self.client.send_message(entity, message)
         await self.client.disconnect()
+        return True

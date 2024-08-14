@@ -12,5 +12,10 @@ app = FastAPI(
 @app.get("/")
 async def root(phone: str, entity: str, message: str):
     bot = TelegramUserBot(phone)
-    await bot.send_msg(entity, message)
-    return {"status": "sent"}
+    return await bot.send_msg(entity, message)
+
+
+@app.get("/auth")
+async def auth(phone: str, code: str):
+    bot = TelegramUserBot(phone)
+    return await bot.sign_in_with_code(code)
