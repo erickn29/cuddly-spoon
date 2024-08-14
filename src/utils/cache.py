@@ -6,7 +6,7 @@ from redis import RedisError
 
 
 class Cache:
-    def __init__(self, host=cfg.redis.HOST, port=cfg.redis.PORT, db=cfg.redis.DB):
+    def __init__(self, host=cfg.REDIS_HOST, port=cfg.REDIS_PORT, db=cfg.REDIS_DB):
         self.host = host
         self.port = port
         self.db = db

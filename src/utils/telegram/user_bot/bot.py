@@ -61,7 +61,7 @@ class TelegramUserBot:
 
     async def sign_in_with_code(self, code: str) -> bool:
         await self.client.connect()
-        phone_code_hash = cache.get(self.phone)
+        phone_code_hash = await cache.get(self.phone)
         status = await self.client.sign_in(
             phone=self.phone,
             code=code,
@@ -74,7 +74,7 @@ class TelegramUserBot:
         await self.client.connect()
         if not await self.client.is_user_authorized():
             phone_code_hash = await self.client.send_code_request(self.phone)
-            cache.set(self.phone, phone_code_hash)
+            cache.set(self.phone, phone_code_hash.phone_code_hash)
             await self.client.disconnect()
             return False
         await self.sign_in()
