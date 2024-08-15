@@ -27,21 +27,21 @@ async def http_exception_handler(
 async def check_auth(phone: str):
     bot = TelegramUserBot(phone)
     user_is_authorized = await bot.check_is_authorized()
-    return {"user_is_authorized": user_is_authorized}
+    return {"status": user_is_authorized}
 
 
 @app.get("/bot/auth/request-code/")
 async def request_code(phone: str):
     bot = TelegramUserBot(phone)
     code_is_sent_to_user = await bot.request_verification_code()
-    return {"code_is_sent_to_user": code_is_sent_to_user}
+    return {"status": code_is_sent_to_user}
 
 
 @app.get("/bot/auth/send-code/")
 async def auth(phone: str, code: str):
     bot = TelegramUserBot(phone)
     auth_is_success = await bot.sign_in_with_code(code)
-    return {"auth_is_success": auth_is_success}
+    return {"status": auth_is_success}
 
 
 @app.get("/bot/start/")
