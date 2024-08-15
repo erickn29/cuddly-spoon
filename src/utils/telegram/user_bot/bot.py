@@ -74,6 +74,35 @@ class TelegramUserBot:
         await cache.set(self.phone, response.phone_code_hash)
         await self.disconnect()
 
+    async def get_new_messages_chat_id(self):
+        await self.connect()
+        if not await self.client.is_user_authorized():
+            await self.request_verification_code()
+            await self.disconnect()
+            return False
+        dialogs = await self.client.get_dialogs()
+        dialogs_list = []
+        for dialog in dialogs:
+            if (
+                dialog.is_channel and
+                dialog.message and
+                dialog.message.replies and
+                dialog.unread_count > 0 and
+                dialog.message.replies.comments
+            ):
+                dialogs_list.append(
+                    {
+                        "chat_id": dialog.entity.id,
+                        "comment_group_id": dialog.message.replies.channel_id,
+                        "last_message_id": dialog.message.replies.id,
+                    }
+                )
+        await self.disconnect()
+        return dialogs_list
+
+    async def get_comments_group_id(self):
+        pass
+
     async def send_message(self, entity: str, message: str) -> bool:
         await self.connect()
         if not await self.client.is_user_authorized():

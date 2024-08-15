@@ -19,3 +19,9 @@ async def root(phone: str, entity: str, message: str):
 async def auth(phone: str, code: str):
     bot = TelegramUserBot(phone)
     return await bot.sign_in_with_code(code)
+
+
+@app.get("/get_messages")
+async def auth(phone: str):
+    bot = TelegramUserBot(phone)
+    return await bot.get_new_messages_chat_id()
