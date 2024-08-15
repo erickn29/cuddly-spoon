@@ -40,7 +40,6 @@ class TelegramUserBot:
     async def check_is_authorized(self) -> bool:
         await self.connect()
         if not await self.client.is_user_authorized():
-            await self.request_verification_code()
             await self.disconnect()
             return False
         await self.disconnect()
