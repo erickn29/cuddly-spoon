@@ -36,20 +36,14 @@ class TelegramUserBot:
         if self.client.is_connected():
             await self.client.disconnect()
 
-    # async def send_message_to_chat(self, event):
-    #     msg = event.message
-    #     if event.is_channel and msg.replies and msg.replies.comments:
-    #         await asyncio.sleep(11)
-    #         comments_chat_id = msg.replies.channel_id
-    #         messages = await self.client.get_messages(comments_chat_id)
-    #         if not messages:
-    #             return
-    #         last_channel_message = messages[-1]
-    #         await self.client.send_message(
-    #             entity=comments_chat_id,
-    #             reply_to=last_channel_message,
-    #             message='ok'
-    #         )
+    async def check_is_authorized(self) -> bool:
+        await self.connect()
+        if not await self.client.is_user_authorized():
+            await self.request_verification_code()
+            await self.disconnect()
+            return False
+        await self.disconnect()
+        return True
 
     async def sign_in_with_code(self, code: str) -> bool:
         await self.connect()
@@ -70,16 +64,19 @@ class TelegramUserBot:
 
     async def request_verification_code(self):
         await self.connect()
-        response = await self.client.send_code_request(self.phone)
-        await cache.set(self.phone, response.phone_code_hash)
-        await self.disconnect()
-
-    async def get_new_messages_chat_id(self):
-        await self.connect()
-        if not await self.client.is_user_authorized():
-            await self.request_verification_code()
+        is_response = False
+        try:
+            response = await self.client.send_code_request(self.phone)
+            if response and response.phone_code_hash:
+                await cache.set(self.phone, response.phone_code_hash)
+                is_response = True
+        except Exception as e:
+            print(e)
+        finally:
             await self.disconnect()
-            return False
+            return is_response
+
+    async def _get_new_messages_chat_id(self):
         dialogs = await self.client.get_dialogs()
         dialogs_list = []
         for dialog in dialogs:
@@ -90,24 +87,40 @@ class TelegramUserBot:
                 dialog.unread_count > 0 and
                 dialog.message.replies.comments
             ):
+                messages = await self.client.get_messages(
+                    dialog.message.replies.channel_id
+                )
+                if not messages:
+                    continue
+                last_channel_message = messages[-1]
+                await self.client.send_read_acknowledge(dialog.entity.id)
                 dialogs_list.append(
                     {
                         "chat_id": dialog.entity.id,
                         "comment_group_id": dialog.message.replies.channel_id,
-                        "last_message_id": dialog.message.replies.id,
+                        "last_message_entity": last_channel_message,
                     }
                 )
-        await self.disconnect()
         return dialogs_list
 
-    async def get_comments_group_id(self):
-        pass
+    async def start_comments(self) -> bool:
+        await self.connect()
+        messages_list = await self._get_new_messages_chat_id()
+        for message in messages_list:
+            try:
+                await self.client.send_message(
+                    entity=message.get("comment_group_id"),
+                    reply_to=message.get("last_message_entity"),
+                    message='ok'
+                )
+            except Exception as e:
+                print(e)
+                continue
+        await self.disconnect()
+        return True
 
     async def send_message(self, entity: str, message: str) -> bool:
         await self.connect()
-        if not await self.client.is_user_authorized():
-            await self.request_verification_code()
-            return False
         await self.client.start(self.phone)
         await self.client.send_message(entity, message)
         await self.disconnect()
