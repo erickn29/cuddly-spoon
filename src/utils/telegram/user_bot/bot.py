@@ -3,6 +3,7 @@ import datetime
 from pathlib import Path
 
 from telethon import TelegramClient, events
+from telethon.tl.functions.account import UpdateProfileRequest
 from telethon.tl.types import User
 
 from core.config import cfg
@@ -81,11 +82,11 @@ class TelegramUserBot:
         dialogs_list = []
         for dialog in dialogs:
             if (
-                dialog.is_channel and
-                dialog.message and
-                dialog.message.replies and
-                dialog.unread_count > 0 and
-                dialog.message.replies.comments
+                    dialog.is_channel and
+                    dialog.message and
+                    dialog.message.replies and
+                    dialog.unread_count > 0 and
+                    dialog.message.replies.comments
             ):
                 messages = await self.client.get_messages(
                     dialog.message.replies.channel_id
@@ -125,3 +126,21 @@ class TelegramUserBot:
         await self.client.send_message(entity, message)
         await self.disconnect()
         return True
+
+    async def update_bio(
+        self, first_name: str = "", last_name: str = "", about: str = "",
+    ) -> bool:
+        await self.connect()
+        status = False
+        try:
+            await self.client(UpdateProfileRequest(
+                first_name=first_name,
+                last_name=last_name,
+                about=about,
+            ))
+            status = True
+        except Exception as e:
+            print(e)
+        finally:
+            await self.disconnect()
+            return status
