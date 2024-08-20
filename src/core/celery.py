@@ -1,5 +1,5 @@
 from celery import Celery
-from celery.schedules import crontab
+from celery.schedules import crontab, schedule
 
 from core.config import cfg
 
@@ -13,8 +13,8 @@ celery_app = Celery(
 
 celery_app.conf.beat_schedule = {
     "run-every-minute": {
-        "task": "tasks.bot_tasks.periodic_task",
-        "schedule": crontab(minute="*"),
+        "task": "tasks.bot_tasks.start_commenting",
+        "schedule": schedule(30.0),
     }
 }
 
