@@ -4,12 +4,12 @@ from repositories.base import SQLAlchemyRepository
 
 from core.database import db_conn
 from fastapi import Depends
-from models.bot import Bot
+from models.task import Task
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-class BotRepository(SQLAlchemyRepository):
-    model = Bot
+class TaskRepository(SQLAlchemyRepository):
+    model = Task
 
     def __init__(
         self,
@@ -17,6 +17,6 @@ class BotRepository(SQLAlchemyRepository):
             AsyncSession,
             Depends(db_conn.get_session),
         ],
-        model=Bot,
+        model=Task,
     ) -> None:
         super().__init__(session=session, model=model)
