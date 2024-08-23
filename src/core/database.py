@@ -41,9 +41,9 @@ class DatabaseHelper:
 
 
 db_conn = DatabaseHelper(
-    url=cfg.db.url(),
-    echo=cfg.db.echo,
-    echo_pool=cfg.db.echo_pool,
-    pool_size=cfg.db.pool_size,
-    max_overflow=cfg.db.max_overflow,
+    url=cfg.db_url(),
+    echo=cfg.POSTGRES_echo,
+    echo_pool=cfg.POSTGRES_echo_pool,
+    pool_size=cfg.POSTGRES_pool_size,
+    max_overflow=cfg.POSTGRES_max_overflow,
 )

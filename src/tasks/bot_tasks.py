@@ -25,7 +25,9 @@ async def main(phone_list):
 @celery_app.task
 def start_commenting(phone: str = None):
     # Передаем телефон в список для асинхронной функции
-    phones = [phone] if phone else ["79523048633"]  # Используем переданный телефон или значение по умолчанию
+    phones = (
+        [phone] if phone else ["79523048633"]
+    )  # Используем переданный телефон или значение по умолчанию
     try:
         # В Python 3.10+ вместо get_event_loop() лучше использовать новый способ создания лупа
         asyncio.run(main(phones))

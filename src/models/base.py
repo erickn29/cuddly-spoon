@@ -31,4 +31,4 @@ class Base(DeclarativeBase):
     created_at: Mapped[created_at]
     updated_at: Mapped[updated_at]
 
-    metadata = MetaData(naming_convention=cfg.db.naming_convention)
+    metadata = MetaData(naming_convention=cfg.POSTGRES_naming_convention)

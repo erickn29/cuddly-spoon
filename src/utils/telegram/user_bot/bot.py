@@ -12,8 +12,7 @@ import logging
 from utils.cache import cache
 
 logging.basicConfig(
-    format='[%(levelname) 5s/%(asctime)s] %(name)s: %(message)s',
-    level=logging.WARNING
+    format="[%(levelname) 5s/%(asctime)s] %(name)s: %(message)s", level=logging.WARNING
 )
 
 
@@ -24,7 +23,7 @@ class TelegramUserBot:
     def __init__(self, phone: str) -> None:
         self.phone = phone
         self.client = TelegramClient(
-            session=f'{Path(__file__).parent}/session/{phone}',
+            session=f"{Path(__file__).parent}/session/{phone}",
             api_id=self.api_id,
             api_hash=self.api_hash,
         )
@@ -81,11 +80,11 @@ class TelegramUserBot:
         dialogs_list = []
         for dialog in dialogs:
             if (
-                    dialog.is_channel and
-                    dialog.message and
-                    dialog.message.replies and
-                    dialog.unread_count > 0 and
-                    dialog.message.replies.comments
+                dialog.is_channel
+                and dialog.message
+                and dialog.message.replies
+                and dialog.unread_count > 0
+                and dialog.message.replies.comments
             ):
                 messages = await self.client.get_messages(
                     dialog.message.replies.channel_id
@@ -111,7 +110,7 @@ class TelegramUserBot:
                 await self.client.send_message(
                     entity=message.get("comment_group_id"),
                     reply_to=message.get("last_message_entity"),
-                    message='ok'
+                    message="ok",
                 )
             except Exception as e:
                 print(e)
@@ -127,16 +126,21 @@ class TelegramUserBot:
         return True
 
     async def update_bio(
-        self, first_name: str = "", last_name: str = "", about: str = "",
+        self,
+        first_name: str = "",
+        last_name: str = "",
+        about: str = "",
     ) -> bool:
         await self.connect()
         status = False
         try:
-            await self.client(UpdateProfileRequest(
-                first_name=first_name,
-                last_name=last_name,
-                about=about,
-            ))
+            await self.client(
+                UpdateProfileRequest(
+                    first_name=first_name,
+                    last_name=last_name,
+                    about=about,
+                )
+            )
             status = True
         except Exception as e:
             print(e)
