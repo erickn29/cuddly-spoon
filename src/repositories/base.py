@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from typing import Any
 
+from core.database import db_conn
 from core.exceptions import exception
 from pydantic import UUID4, BaseModel
 from sqlalchemy import Row, RowMapping, and_, insert, select
@@ -11,9 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class SQLAlchemyRepository:
     model = None
 
-    def __init__(self, session: AsyncSession, model) -> None:
-        self.session = session
+    def __init__(self, model) -> None:
+        self.session_generator = db_conn.get_session()
         self.model = model
+
+    async def session(self) -> AsyncSession:
+        return await anext(self.session_generator)
 
     async def get(self, obj_id: UUID4):
         query = select(self.model).where(self.model.id == obj_id)
@@ -26,11 +30,10 @@ class SQLAlchemyRepository:
     async def create(self, obj: BaseModel):
         stmt = insert(self.model).values(**obj.model_dump()).returning(self.model)
         try:
-            result = await self.session.execute(stmt)
-            await self.session.commit()
+            async with await self.session() as session:
+                result = await session.execute(stmt)
+                await session.commit()
         except IntegrityError as e:
-            await self.session.rollback()
-            await self.session.close()
             raise exception(
                 400,
                 "Ошибка создания объекта",

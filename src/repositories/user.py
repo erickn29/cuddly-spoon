@@ -13,10 +13,6 @@ class UserRepository(SQLAlchemyRepository):
 
     def __init__(
         self,
-        session: Annotated[
-            AsyncSession,
-            Depends(db_conn.get_session),
-        ],
         model=User,
     ) -> None:
-        super().__init__(session=session, model=model)
+        super().__init__(model=model)

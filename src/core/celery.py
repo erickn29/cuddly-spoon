@@ -14,7 +14,7 @@ celery_app = Celery(
 celery_app.conf.beat_schedule = {
     "BOT: start commenting": {
         "task": "tasks.bot_tasks.start_commenting",
-        "schedule": schedule(30.0),
+        "schedule": schedule(60.0),
     }
 }
 

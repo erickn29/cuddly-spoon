@@ -4,6 +4,7 @@ from sqlalchemy import String, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base, uuid_pk
+from models.bot import Bot
 
 
 class User(Base):
@@ -15,8 +16,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, doc="Активен")
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, doc="Админ")
 
-    bots = relationship(
-        "Bot",
+    bots: Mapped[List["Bot"]] = relationship(
         back_populates="user",
         lazy="selectin",
         cascade="all, delete-orphan",

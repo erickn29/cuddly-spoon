@@ -1,8 +1,9 @@
 import os
 from pathlib import Path
+from passlib.context import CryptContext
 
 from dotenv import load_dotenv
-
+from fastapi.security import OAuth2PasswordBearer
 
 load_dotenv(f"{Path(__file__).parent.parent.parent}/secrets/.env")
 
@@ -12,6 +13,15 @@ class Config:
     TELEGRAM_API_HASH = os.environ.get("TELEGRAM_API_HASH")
 
     DEBUG = os.environ.get("DEBUG", False)
+    SECRET = os.environ.get("SECRET", "key")
+
+    ACCESS_TOKEN_EXPIRE: int = 3 * 60
+    REFRESH_TOKEN_EXPIRE: int = 60 * 24 * 7 * 60
+    RECOVERY_TOKEN_EXPIRE: int = 60 * 60 * 24
+    TOKEN_TYPE: str = "Bearer"
+    ALGORITHM: str = "HS256"
+    PWD_CONTEXT: CryptContext = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    OAUTH2_SCHEME: OAuth2PasswordBearer = OAuth2PasswordBearer("/api/v1/auth/token/")
 
     REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
     REDIS_PORT = os.environ.get("REDIS_PORT", 6379)
