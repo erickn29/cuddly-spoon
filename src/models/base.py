@@ -5,7 +5,8 @@ from typing import Annotated
 
 from core.config import cfg
 from sqlalchemy import UUID, MetaData
-from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
 
 uuid_pk = Annotated[
     uuid.UUID,

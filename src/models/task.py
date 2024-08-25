@@ -1,7 +1,6 @@
-from sqlalchemy import ForeignKey, UUID, Boolean, JSON
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from models.base import Base, uuid_pk
+from sqlalchemy import JSON, UUID, Boolean, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class Task(Base):

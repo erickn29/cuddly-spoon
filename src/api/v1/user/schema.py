@@ -14,11 +14,15 @@ class UserCreateOutputSchema(BaseModel):
     email: str
 
 
-class UserUpdateInputSchema(BaseModel):
-    user_id: UUID
+class UserUpdateDataSchema(BaseModel):
     email: str = None
     password: str = None
     is_active: bool = None
+
+
+class UserUpdateInputSchema(BaseModel):
+    user_id: UUID
+    data: UserUpdateDataSchema
 
 
 class UserUpdateOutputSchema(BaseModel):
@@ -37,3 +41,11 @@ class UserDeleteOutputSchema(BaseModel):
 
 class UserRetrieveInputSchema(BaseModel):
     user_id: UUID
+
+
+class UserRetrieveOutputSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: UUID
+    email: str
+    is_active: bool

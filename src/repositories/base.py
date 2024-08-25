@@ -3,6 +3,7 @@ from typing import Any
 
 from core.database import db_conn
 from core.exceptions import exception
+from models.base import Base
 from pydantic import UUID4, BaseModel
 from sqlalchemy import Row, RowMapping, and_, insert, select
 from sqlalchemy.exc import IntegrityError
@@ -10,18 +11,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class SQLAlchemyRepository:
-    model = None
-
-    def __init__(self, model) -> None:
-        self.session_generator = db_conn.get_session()
-        self.model = model
+    model: Base = None
+    id_column: str = None
+    session_factory = db_conn.session_factory
 
     async def session(self) -> AsyncSession:
-        return await anext(self.session_generator)
+        return self.session_factory()
 
     async def get(self, obj_id: UUID4):
-        query = select(self.model).where(self.model.id == obj_id)
-        result = await self.session.execute(query)
+        query = select(self.model).where(getattr(self.model, self.id_column) == obj_id)
+        async with await self.session() as session:
+            result = await session.execute(query)
         obj = result.scalars().first()
         if not obj:
             raise exception(404, extra=str(obj_id))
@@ -47,8 +47,9 @@ class SQLAlchemyRepository:
 
     async def delete(self, obj_id: UUID4) -> UUID4:
         obj = await self.get(obj_id)
-        await self.session.delete(obj)
-        await self.session.commit()
+        async with await self.session() as session:
+            await session.delete(obj)
+            await session.commit()
         return obj_id
 
     async def fetch(
@@ -77,7 +78,8 @@ class SQLAlchemyRepository:
         order_by = order_by or [self.model.created_at.desc()]
         query = select(self.model)
         if not filters:
-            result = await self.session.execute(query)
+            async with await self.session() as session:
+                result = await session.execute(query)
             return result.scalars().all()
 
         filter_conditions = []
@@ -99,28 +101,34 @@ class SQLAlchemyRepository:
                 1 if paginate.get("current_page") <= 0 else paginate.get("current_page")
             )
             query = query.limit(limit).offset((page - 1) * limit)
-        result = await self.session.execute(query)
+        async with await self.session() as session:
+            result = await session.execute(query)
         return result.scalars().all()
 
     async def in_(self, column: str, values: list):
         query = select(self.model).where(getattr(self.model, column).in_(values))
-        result = await self.session.execute(query)
+        async with await self.session() as session:
+            result = await session.execute(query)
         return result.scalars().all()
 
     async def update(self, obj_id: UUID4, data: BaseModel):
-        upd_data = data.dict(exclude_unset=True) if not isinstance(data, dict) else data
-        obj = await self.session.get(self.model, obj_id)
-        if not obj:
-            raise exception(400, extra=str(obj_id))
-        for field, value in upd_data.items():
-            if value is None:
-                continue
-            setattr(obj, field, value)
-        await self.session.commit()
+        upd_data = (
+            data.model_dump(exclude_unset=True) if not isinstance(data, dict) else data
+        )
+        async with await self.session() as session:
+            obj = await session.get(self.model, obj_id)
+            if not obj:
+                raise exception(400, extra=str(obj_id))
+            for field, value in upd_data.items():
+                if value is None:
+                    continue
+                setattr(obj, field, value)
+            await session.commit()
         return obj
 
     async def exists(self, obj_id: UUID4) -> bool:
         query = select(self.model).where(self.model.id == obj_id)
-        result = await self.session.execute(query)
+        async with await self.session() as session:
+            result = await session.execute(query)
         obj = result.scalars().first()
         return obj is not None

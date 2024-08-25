@@ -1,10 +1,6 @@
 import asyncio
-from time import sleep
 
 from core.celery import celery_app
-import datetime
-
-from core.exceptions import exception
 from utils.telegram.user_bot.bot import TelegramUserBot
 
 
@@ -29,9 +25,8 @@ def start_commenting(phone: str = None):
         [phone] if phone else ["79523048633"]
     )  # Используем переданный телефон или значение по умолчанию
     try:
-        # В Python 3.10+ вместо get_event_loop() лучше использовать новый способ создания лупа
         asyncio.run(main(phones))
-    except RuntimeError as e:
+    except RuntimeError:
         # Если event loop уже существует, создаем задачу в нем
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

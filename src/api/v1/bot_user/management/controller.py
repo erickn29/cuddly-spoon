@@ -1,9 +1,8 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body
-
 from api.v1.bot_user.management.schema import UpdateBotBioInputSchema
 from core.exceptions import exception
+from fastapi import APIRouter, Body
 from utils.telegram.user_bot.bot import TelegramUserBot
 
 

@@ -1,7 +1,7 @@
 from celery import Celery
-from celery.schedules import crontab, schedule
-
+from celery.schedules import schedule
 from core.config import cfg
+
 
 celery_app = Celery(
     "worker",

@@ -1,11 +1,8 @@
-from typing import List
-
-from sqlalchemy import UUID, ForeignKey, String, JSON, Boolean
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from models.base import Base, uuid_pk
 from models.comment import Comment
 from models.task import Task
+from sqlalchemy import JSON, UUID, Boolean, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class Bot(Base):
@@ -24,13 +21,13 @@ class Bot(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, doc="Активен")
 
     user = relationship("User", back_populates="bots", lazy="joined")
-    tasks: Mapped[List["Task"]] = relationship(
+    tasks: Mapped[list["Task"]] = relationship(
         back_populates="bot",
         lazy="selectin",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
-    comments: Mapped[List["Comment"]] = relationship(
+    comments: Mapped[list["Comment"]] = relationship(
         back_populates="bot",
         lazy="selectin",
         cascade="all, delete-orphan",

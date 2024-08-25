@@ -1,11 +1,10 @@
+from api.routes import router
+from core.config import cfg
+from core.exceptions import BaseHTTPException
 from fastapi import FastAPI
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from api.routes import router
-from core.config import cfg
-from core.exceptions import exception, BaseHTTPException
-from utils.telegram.user_bot.bot import TelegramUserBot
 
 app = FastAPI(
     docs_url="/swagger/" if cfg.DEBUG else None,

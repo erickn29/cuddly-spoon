@@ -1,9 +1,11 @@
 import os
+
 from pathlib import Path
-from passlib.context import CryptContext
 
 from dotenv import load_dotenv
 from fastapi.security import OAuth2PasswordBearer
+from passlib.context import CryptContext
+
 
 load_dotenv(f"{Path(__file__).parent.parent.parent}/secrets/.env")
 

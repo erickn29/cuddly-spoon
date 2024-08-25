@@ -1,15 +1,13 @@
-import asyncio
-import datetime
-from pathlib import Path
-
-from telethon import TelegramClient, events
-from telethon.tl.functions.account import UpdateProfileRequest
-from telethon.tl.types import User
-
-from core.config import cfg
 import logging
 
+from pathlib import Path
+
+from core.config import cfg
+from telethon import TelegramClient
+from telethon.tl.functions.account import UpdateProfileRequest
+from telethon.tl.types import User
 from utils.cache import cache
+
 
 logging.basicConfig(
     format="[%(levelname) 5s/%(asctime)s] %(name)s: %(message)s", level=logging.WARNING
@@ -59,7 +57,7 @@ class TelegramUserBot:
             print(e)
         finally:
             await self.disconnect()
-            return is_user
+        return is_user
 
     async def request_verification_code(self):
         await self.connect()
@@ -73,7 +71,7 @@ class TelegramUserBot:
             print(e)
         finally:
             await self.disconnect()
-            return is_response
+        return is_response
 
     async def _get_new_messages_chat_id(self):
         dialogs = await self.client.get_dialogs()
@@ -146,4 +144,4 @@ class TelegramUserBot:
             print(e)
         finally:
             await self.disconnect()
-            return status
+        return status

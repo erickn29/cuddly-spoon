@@ -1,7 +1,6 @@
-from sqlalchemy import ForeignKey, UUID, Boolean, JSON, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from models.base import Base, uuid_pk
+from sqlalchemy import UUID, ForeignKey, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class Comment(Base):
