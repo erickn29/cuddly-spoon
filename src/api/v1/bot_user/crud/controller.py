@@ -10,13 +10,16 @@ from api.v1.bot_user.crud.schema import (
     BotListOutputSchema,
     BotRetrieveOutputSchema,
     BotUpdateInputSchema,
-    BotUpdateOutputSchema,
+    BotUpdateOutputSchema, BotJoinChannelInputSchema,
 )
 from fastapi import APIRouter
+
+from core.exceptions import exception
 from models.user import User
 from services.bot import BotService
 from services.user import UserService
 from utils.telegram.user_bot.bot import TelegramUserBot
+from tasks.bot_tasks import joining_channel
 
 
 router = APIRouter()
@@ -45,29 +48,29 @@ async def sign_in(schema: BotAuthPhoneCodeInputSchema):
 
 @router.get("/{bot_id}/", status_code=200, response_model=BotRetrieveOutputSchema)
 async def retrieve(bot_id: str):
-    user_service = BotService()
-    result = await user_service.get(bot_id)
+    bot_service = BotService()
+    result = await bot_service.get(bot_id)
     return result
 
 
 @router.post("/", status_code=201, response_model=BotCreateOutputSchema)
 async def create(schema: BotCreateInputSchema):
-    user_service = BotService()
-    result = await user_service.create(schema)
+    bot_service = BotService()
+    result = await bot_service.create(schema)
     return result
 
 
 @router.put("/", status_code=201, response_model=BotUpdateOutputSchema)
 async def update(schema: BotUpdateInputSchema):
-    user_service = BotService()
-    result = await user_service.update(schema.bot_id, schema.data)
+    bot_service = BotService()
+    result = await bot_service.update(schema.bot_id, schema.data)
     return result
 
 
 @router.delete("/", status_code=201, response_model=BotDeleteOutputSchema)
 async def delete(schema: BotDeleteInputSchema):
-    user_service = BotService()
-    result = await user_service.delete(schema.bot_id)
+    bot_service = BotService()
+    result = await bot_service.delete(schema.bot_id)
     return BotDeleteInputSchema(bot_id=result)
 
 
@@ -76,3 +79,13 @@ async def item_list(schema: BotListInputSchema):
     user_service = UserService()
     user: User = await user_service.get(schema.user_id)
     return BotListOutputSchema(bots=user.bots)
+
+
+@router.post("/task/join-channel/")
+async def join_channel(schema: BotJoinChannelInputSchema):
+    bot_service = BotService()
+    bot_object = await bot_service.get(schema.bot_id)
+    if not bot_object:
+        raise exception(404)
+    joining_channel.delay(bot_object.phone, schema.channels)
+    return {"status": True}

@@ -1,6 +1,9 @@
+import asyncio
 import logging
 
 from pathlib import Path
+
+from telethon.tl.functions.channels import JoinChannelRequest
 
 from core.config import cfg
 from telethon import TelegramClient
@@ -115,6 +118,13 @@ class TelegramUserBot:
                 continue
         await self.disconnect()
         return True
+
+    async def join_channel(self, channel_urls: list[str]):
+        await self.connect()
+        for channel_url in channel_urls:
+            await self.client(JoinChannelRequest(channel=channel_url))
+            await asyncio.sleep(1)
+        await self.disconnect()
 
     async def send_message(self, entity: str, message: str) -> bool:
         await self.connect()

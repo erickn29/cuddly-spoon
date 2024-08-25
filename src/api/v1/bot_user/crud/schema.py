@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -92,3 +93,8 @@ class BotAuthPhoneCodeInputSchema(BaseModel):
 
 class BotAuthResultOutputSchema(BaseModel):
     status: bool
+
+
+class BotJoinChannelInputSchema(BaseModel):
+    bot_id: UUID
+    channels: List[str]
