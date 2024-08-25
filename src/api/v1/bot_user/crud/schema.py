@@ -79,3 +79,16 @@ class BotListInputSchema(BaseModel):
 
 class BotListOutputSchema(BaseModel):
     bots: list[BotRetrieveOutputSchema]
+
+
+class BotAuthPhoneInputSchema(BaseModel):
+    phone: str
+
+
+class BotAuthPhoneCodeInputSchema(BaseModel):
+    phone: str
+    code: str
+
+
+class BotAuthResultOutputSchema(BaseModel):
+    status: bool

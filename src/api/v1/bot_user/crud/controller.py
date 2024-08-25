@@ -5,16 +5,41 @@ from api.v1.bot_user.crud.schema import (
     BotDeleteOutputSchema,
     BotRetrieveOutputSchema,
     BotUpdateInputSchema,
-    BotUpdateOutputSchema, BotRetrieveInputSchema, BotListOutputSchema,
-    BotListInputSchema,
+    BotUpdateOutputSchema,
+    BotListOutputSchema,
+    BotListInputSchema, BotAuthPhoneInputSchema, BotAuthPhoneCodeInputSchema,
+    BotAuthResultOutputSchema,
 )
 from fastapi import APIRouter
 
 from models.user import User
 from services.bot import BotService
 from services.user import UserService
+from utils.telegram.user_bot.bot import TelegramUserBot
+
 
 router = APIRouter()
+
+
+@router.post("/auth/check/", response_model=BotAuthResultOutputSchema)
+async def check_auth(schema: BotAuthPhoneInputSchema):
+    bot = TelegramUserBot(schema.phone)
+    user_is_authorized = await bot.check_is_authorized()
+    return BotAuthResultOutputSchema(status=user_is_authorized)
+
+
+@router.post("/auth/request-code/", response_model=BotAuthResultOutputSchema)
+async def request_code(schema: BotAuthPhoneInputSchema):
+    bot = TelegramUserBot(schema.phone)
+    code_is_sent_to_user = await bot.request_verification_code()
+    return BotAuthResultOutputSchema(status=code_is_sent_to_user)
+
+
+@router.post("/auth/send-code/", response_model=BotAuthResultOutputSchema)
+async def sign_in(schema: BotAuthPhoneCodeInputSchema):
+    bot = TelegramUserBot(schema.phone)
+    auth_is_success = await bot.sign_in_with_code(schema.code)
+    return BotAuthResultOutputSchema(status=auth_is_success)
 
 
 @router.get("/{bot_id}/", status_code=200, response_model=BotRetrieveOutputSchema)
@@ -50,4 +75,3 @@ async def item_list(schema: BotListInputSchema):
     user_service = UserService()
     user: User = await user_service.get(schema.user_id)
     return BotListOutputSchema(bots=user.bots)
-
