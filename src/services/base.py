@@ -1,18 +1,18 @@
-from typing import Sequence, Any
-
-from pydantic import UUID4, BaseModel
-from sqlalchemy import Row, RowMapping
+from collections.abc import Sequence
+from typing import Any
 
 from models.base import Base
 from models.bot import Bot
 from models.comment import Comment
 from models.task import Task
 from models.user import User
+from pydantic import UUID4, BaseModel
+from sqlalchemy import Row, RowMapping
 
 
 class BaseService:
     repository = None
-    
+
     async def get(self, obj_id: UUID4) -> User | Bot | Task | Comment:
         return await self.repository.get(obj_id)
 

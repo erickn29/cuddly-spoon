@@ -1,7 +1,7 @@
 # from api.v1.bot_user.job.controller import router as bot_user_job_router
 # from api.v1.bot_user.management.controller import router as bot_user_management_router
-from api.v1.user.controller import router as user_router
 from api.v1.bot_user.crud.controller import router as bot_user_crud
+from api.v1.user.controller import router as user_router
 from fastapi import APIRouter
 
 

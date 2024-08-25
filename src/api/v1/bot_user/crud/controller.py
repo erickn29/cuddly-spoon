@@ -1,17 +1,18 @@
 from api.v1.bot_user.crud.schema import (
+    BotAuthPhoneCodeInputSchema,
+    BotAuthPhoneInputSchema,
+    BotAuthResultOutputSchema,
     BotCreateInputSchema,
     BotCreateOutputSchema,
     BotDeleteInputSchema,
     BotDeleteOutputSchema,
+    BotListInputSchema,
+    BotListOutputSchema,
     BotRetrieveOutputSchema,
     BotUpdateInputSchema,
     BotUpdateOutputSchema,
-    BotListOutputSchema,
-    BotListInputSchema, BotAuthPhoneInputSchema, BotAuthPhoneCodeInputSchema,
-    BotAuthResultOutputSchema,
 )
 from fastapi import APIRouter
-
 from models.user import User
 from services.bot import BotService
 from services.user import UserService

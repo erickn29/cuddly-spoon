@@ -1,6 +1,3 @@
-from collections.abc import Sequence
-from typing import Any
-
 from api.v1.user.schema import (
     UserCreateInputSchema,
     UserUpdateDataSchema,
@@ -9,9 +6,8 @@ from core.config import cfg
 from models.user import User
 from pydantic import UUID4
 from repositories.user import UserRepository
-from sqlalchemy import Row, RowMapping
-
 from services.base import BaseService
+
 
 PWD_CONTEXT = cfg.PWD_CONTEXT
 
