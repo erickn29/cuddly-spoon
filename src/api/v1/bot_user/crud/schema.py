@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -97,4 +97,29 @@ class BotAuthResultOutputSchema(BaseModel):
 
 class BotJoinChannelInputSchema(BaseModel):
     bot_id: UUID
-    channels: List[str]
+    channels: list[str]
+
+
+class BotLeaveChannelInputSchema(BaseModel):
+    bot_id: UUID
+    channels: list[str]
+
+
+class JoinChannelSchema(BaseModel):
+    type: str = "join-channels"
+    channels: list[str]
+
+
+class LeaveChannelSchema(BaseModel):
+    type: str = "leave-channels"
+    channels: list[str]
+
+
+class TaskCreateSchema(BaseModel):
+    bot_id: UUID
+    is_executed: bool = False
+    data: JoinChannelSchema | LeaveChannelSchema
+
+
+class TaskUpdateSchema(BaseModel):
+    is_executed: bool = False

@@ -3,12 +3,16 @@ import logging
 
 from pathlib import Path
 
-from telethon.tl.functions.channels import JoinChannelRequest
+from pydantic import UUID4
 
+from api.v1.bot_user.crud.schema import TaskUpdateSchema
 from core.config import cfg
 from telethon import TelegramClient
 from telethon.tl.functions.account import UpdateProfileRequest
+from telethon.tl.functions.channels import JoinChannelRequest
 from telethon.tl.types import User
+
+from services.task import TaskService
 from utils.cache import cache
 
 
@@ -108,10 +112,18 @@ class TelegramUserBot:
         messages_list = await self._get_new_messages_chat_id()
         for message in messages_list:
             try:
+                last_message_entity = message.get("last_message_entity")
+                if last_message_entity.is_reply:
+                    await self.client.send_message(
+                        entity=message.get("comment_group_id"),
+                        reply_to=last_message_entity.reply_to_msg_id,
+                        message="ну такое..",
+                    )
+                    continue
                 await self.client.send_message(
                     entity=message.get("comment_group_id"),
                     reply_to=message.get("last_message_entity"),
-                    message="ok",
+                    message="ну такое..",
                 )
             except Exception as e:
                 print(e)
@@ -119,11 +131,31 @@ class TelegramUserBot:
         await self.disconnect()
         return True
 
-    async def join_channel(self, channel_urls: list[str]):
+    async def join_channel(self, channel_urls: list[str], task_id: UUID4):
         await self.connect()
         for channel_url in channel_urls:
-            await self.client(JoinChannelRequest(channel=channel_url))
-            await asyncio.sleep(1)
+            try:
+                await self.client(JoinChannelRequest(channel=channel_url))
+            except Exception as e:
+                print(e)
+                continue
+        task = TaskService()
+        await task.update(task_id, TaskUpdateSchema(is_executed=True))
+        await self.disconnect()
+
+    async def leave_channel(self, channel_urls: list[str], task_id: UUID4):
+        await self.connect()
+        for channel_url in channel_urls:
+            try:
+                await self.client.delete_dialog(
+                    await self.client.get_entity(channel_url)
+                )
+                await asyncio.sleep(1)
+            except Exception as e:
+                print(e)
+                continue
+        task = TaskService()
+        await task.update(task_id, TaskUpdateSchema(is_executed=True))
         await self.disconnect()
 
     async def send_message(self, entity: str, message: str) -> bool:

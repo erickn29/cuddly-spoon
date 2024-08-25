@@ -6,20 +6,22 @@ from api.v1.bot_user.crud.schema import (
     BotCreateOutputSchema,
     BotDeleteInputSchema,
     BotDeleteOutputSchema,
+    BotJoinChannelInputSchema,
+    BotLeaveChannelInputSchema,
     BotListInputSchema,
     BotListOutputSchema,
     BotRetrieveOutputSchema,
     BotUpdateInputSchema,
-    BotUpdateOutputSchema, BotJoinChannelInputSchema,
+    BotUpdateOutputSchema, TaskCreateSchema, JoinChannelSchema, LeaveChannelSchema,
 )
-from fastapi import APIRouter
-
 from core.exceptions import exception
+from fastapi import APIRouter
 from models.user import User
 from services.bot import BotService
+from services.task import TaskService
 from services.user import UserService
+from tasks.bot_tasks import joining_channel, leaving_channel
 from utils.telegram.user_bot.bot import TelegramUserBot
-from tasks.bot_tasks import joining_channel
 
 
 router = APIRouter()
@@ -87,5 +89,29 @@ async def join_channel(schema: BotJoinChannelInputSchema):
     bot_object = await bot_service.get(schema.bot_id)
     if not bot_object:
         raise exception(404)
-    joining_channel.delay(bot_object.phone, schema.channels)
+    task = TaskService()
+    task_obj = await task.create(
+        TaskCreateSchema(
+            bot_id=bot_object.bot_id,
+            data=JoinChannelSchema(channels=schema.channels),
+        )
+    )
+    joining_channel.delay(bot_object.phone, schema.channels, task_obj.task_id)
+    return {"status": True}
+
+
+@router.post("/task/leave-channel/")
+async def leave_channel(schema: BotLeaveChannelInputSchema):
+    bot_service = BotService()
+    bot_object = await bot_service.get(schema.bot_id)
+    if not bot_object:
+        raise exception(404)
+    task = TaskService()
+    task_obj = await task.create(
+        TaskCreateSchema(
+            bot_id=bot_object.bot_id,
+            data=LeaveChannelSchema(channels=schema.channels),
+        )
+    )
+    leaving_channel.delay(bot_object.phone, schema.channels, task_obj.task_id)
     return {"status": True}
