@@ -1,8 +1,9 @@
 import asyncio
 
-from pydantic import UUID4
-
 from core.celery import celery_app
+from pydantic import UUID4
+from services.bot import BotService
+from utils.cache import cache
 from utils.telegram.user_bot.bot import TelegramUserBot
 
 
@@ -13,23 +14,33 @@ async def run_async_commenting(phone: str):
     await bot.start_comments()
 
 
-async def commenting(phone_list: list[str]):
-    tasks = [run_async_commenting(phone) for phone in phone_list]
+async def commenting():
+    phones = await cache.get("bot:active:phones")
+    if not phones:
+        bot_service = BotService()
+        bots = await bot_service.fetch({"is_stopped": False, "is_active": True})
+        phones = ",".join([bot.phone for bot in bots])
+        await cache.set(
+            "bot:active:phones",
+            phones,
+            60 * 60 * 24 * 30,
+        )
+    tasks = [run_async_commenting(phone) for phone in phones.split(",")]
     await asyncio.gather(*tasks)
 
 
 @celery_app.task
-def start_commenting(phone: str = None):
-    phones = [phone] if phone else ["79523048633"]
-    try:
-        asyncio.run(commenting(phones))
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(commenting(phones))
+def start_commenting():
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        loop.create_task(commenting())
+    else:
+        loop.run_until_complete(commenting())
 
 
-async def run_async_joining_channels(phone: str, channel_urls: list[str], task_id: UUID4):
+async def run_async_joining_channels(
+    phone: str, channel_urls: list[str], task_id: UUID4
+):
     from utils.telegram.user_bot.bot import TelegramUserBot
 
     bot = TelegramUserBot(phone)
@@ -39,20 +50,24 @@ async def run_async_joining_channels(phone: str, channel_urls: list[str], task_i
 
 
 async def join_channels(phone: str, channel_urls: list[str], task_id: UUID4):
+    bot_service = BotService()
+    await bot_service.bot_deactivate(phone)
     await asyncio.gather(run_async_joining_channels(phone, channel_urls, task_id))
+    await bot_service.bot_activate(phone)
 
 
 @celery_app.task
 def joining_channel(phone: str, channel_urls: list[str], task_id: UUID4):
-    try:
-        asyncio.run(join_channels(phone, channel_urls, task_id))
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        loop.create_task(join_channels(phone, channel_urls, task_id))
+    else:
         loop.run_until_complete(join_channels(phone, channel_urls, task_id))
 
 
-async def run_async_leaving_channels(phone: str, channel_urls: list[str], task_id: UUID4):
+async def run_async_leaving_channels(
+    phone: str, channel_urls: list[str], task_id: UUID4
+):
     from utils.telegram.user_bot.bot import TelegramUserBot
 
     bot = TelegramUserBot(phone)
@@ -62,14 +77,16 @@ async def run_async_leaving_channels(phone: str, channel_urls: list[str], task_i
 
 
 async def leave_channels(phone: str, channel_urls: list[str], task_id: UUID4):
+    bot_service = BotService()
+    await bot_service.bot_deactivate(phone)
     await asyncio.gather(run_async_leaving_channels(phone, channel_urls, task_id))
+    await bot_service.bot_activate(phone)
 
 
 @celery_app.task
 def leaving_channel(phone: str, channel_urls: list[str], task_id: UUID4):
-    try:
-        asyncio.run(leave_channels(phone, channel_urls, task_id))
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        loop.create_task(leave_channels(phone, channel_urls, task_id))
+    else:
         loop.run_until_complete(leave_channels(phone, channel_urls, task_id))

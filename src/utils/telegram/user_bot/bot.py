@@ -3,16 +3,14 @@ import logging
 
 from pathlib import Path
 
-from pydantic import UUID4
-
 from api.v1.bot_user.crud.schema import TaskUpdateSchema
 from core.config import cfg
+from pydantic import UUID4
+from services.task import TaskService
 from telethon import TelegramClient
 from telethon.tl.functions.account import UpdateProfileRequest
 from telethon.tl.functions.channels import JoinChannelRequest
 from telethon.tl.types import User
-
-from services.task import TaskService
 from utils.cache import cache
 
 

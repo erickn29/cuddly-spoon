@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from core.config import cfg
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -33,9 +35,11 @@ class DatabaseHelper:
     async def dispose(self) -> None:
         await self.engine.dispose()
 
+    @asynccontextmanager
     async def get_session(self) -> AsyncSession:
         async with self.session_factory() as session:
-            return session
+            print(session)
+            yield session
 
 
 db_conn = DatabaseHelper(

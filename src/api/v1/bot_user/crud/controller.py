@@ -12,7 +12,10 @@ from api.v1.bot_user.crud.schema import (
     BotListOutputSchema,
     BotRetrieveOutputSchema,
     BotUpdateInputSchema,
-    BotUpdateOutputSchema, TaskCreateSchema, JoinChannelSchema, LeaveChannelSchema,
+    BotUpdateOutputSchema,
+    JoinChannelSchema,
+    LeaveChannelSchema,
+    TaskCreateSchema,
 )
 from core.exceptions import exception
 from fastapi import APIRouter
