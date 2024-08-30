@@ -1,19 +1,27 @@
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class BotConfig(BaseModel):
+class BotConfigInputSchema(BaseModel):
     prompt: list[str]
     comment_text: list[str]
+    channels: list[str] = []
+
+
+class BotConfigOutputSchema(BaseModel):
+    prompt: list[str]
+    comment_text: list[str]
+    channels: list[str]
 
 
 class BotCreateInputSchema(BaseModel):
     user_id: UUID
     phone: str
     alias: str = None
-    config: BotConfig
+    config: BotConfigInputSchema
 
 
 class BotCreateOutputSchema(BaseModel):
@@ -22,14 +30,14 @@ class BotCreateOutputSchema(BaseModel):
     user_id: UUID
     phone: str
     alias: str | None = None
-    config: BotConfig
+    config: BotConfigOutputSchema
 
 
 class BotUpdateDataSchema(BaseModel):
-    alias: str = None
-    config: BotConfig
-    is_stopped: bool = False
-    is_active: bool = False
+    alias: str | None = None
+    config: BotConfigInputSchema | None = None
+    is_stopped: bool | None = None
+    is_active: bool | None = None
 
 
 class BotUpdateInputSchema(BaseModel):
@@ -43,7 +51,7 @@ class BotUpdateOutputSchema(BaseModel):
     user_id: UUID
     phone: str
     alias: str | None = None
-    config: BotConfig
+    config: BotConfigOutputSchema
     is_stopped: bool
     is_active: bool
 
@@ -67,7 +75,7 @@ class BotRetrieveOutputSchema(BaseModel):
     user_id: UUID
     phone: str
     alias: str | None = None
-    config: BotConfig
+    config: BotConfigOutputSchema
     is_stopped: bool
     is_active: bool
     created_at: datetime
@@ -114,10 +122,22 @@ class LeaveChannelSchema(BaseModel):
     channels: list[str]
 
 
+class UpdateBioSchema(BaseModel):
+    type: str = "update-bio"
+    bio: dict[str, Any] = {}
+
+
+class BotUpdateBioInputSchema(BaseModel):
+    bot_id: UUID
+    first_name: str = Field(max_length=70)
+    last_name: str = Field(max_length=64)
+    about: str = Field(max_length=70)
+
+
 class TaskCreateSchema(BaseModel):
     bot_id: UUID
     is_executed: bool = False
-    data: JoinChannelSchema | LeaveChannelSchema
+    data: JoinChannelSchema | LeaveChannelSchema | UpdateBioSchema
 
 
 class TaskUpdateSchema(BaseModel):

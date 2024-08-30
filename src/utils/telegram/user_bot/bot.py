@@ -165,10 +165,12 @@ class TelegramUserBot:
 
     async def update_bio(
         self,
+        task_id: UUID4,
         first_name: str = "",
         last_name: str = "",
         about: str = "",
     ) -> bool:
+        print(first_name, last_name, about)
         await self.connect()
         status = False
         try:

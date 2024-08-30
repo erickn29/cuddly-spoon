@@ -15,12 +15,12 @@ from api.v1.bot_user.crud.schema import (
     BotUpdateOutputSchema,
     JoinChannelSchema,
     LeaveChannelSchema,
-    TaskCreateSchema,
+    TaskCreateSchema, BotUpdateDataSchema, BotUpdateBioInputSchema, UpdateBioSchema,
 )
 from core.exceptions import exception
 from fastapi import APIRouter
 from models.user import User
-from services.bot import BotService
+from services.bot import BotService, ActionChannels
 from services.task import TaskService
 from services.user import UserService
 from tasks.bot_tasks import joining_channel, leaving_channel
@@ -92,6 +92,11 @@ async def join_channel(schema: BotJoinChannelInputSchema):
     bot_object = await bot_service.get(schema.bot_id)
     if not bot_object:
         raise exception(404)
+    await bot_service.update_channels(
+        ActionChannels.JOIN.value,
+        bot_object,
+        schema.channels
+    )
     task = TaskService()
     task_obj = await task.create(
         TaskCreateSchema(
@@ -109,6 +114,11 @@ async def leave_channel(schema: BotLeaveChannelInputSchema):
     bot_object = await bot_service.get(schema.bot_id)
     if not bot_object:
         raise exception(404)
+    await bot_service.update_channels(
+        ActionChannels.LEAVE.value,
+        bot_object,
+        schema.channels
+    )
     task = TaskService()
     task_obj = await task.create(
         TaskCreateSchema(
@@ -117,4 +127,26 @@ async def leave_channel(schema: BotLeaveChannelInputSchema):
         )
     )
     leaving_channel.delay(bot_object.phone, schema.channels, task_obj.task_id)
+    return {"status": True}
+
+
+@router.post("/task/update-bio/")
+async def update_bio(schema: BotUpdateBioInputSchema):
+    bot_service = BotService()
+    bot_object = await bot_service.get(schema.bot_id)
+    if not bot_object:
+        raise exception(404)
+    task = TaskService()
+    bio_dict = {
+        "first_name": schema.first_name,
+        "last_name": schema.last_name,
+        "about": schema.about,
+    }
+    task_obj = await task.create(
+        TaskCreateSchema(
+            bot_id=bot_object.bot_id,
+            data=UpdateBioSchema(bio=bio_dict),
+        )
+    )
+    leaving_channel.delay(bot_object.phone, bio_dict, task_obj.task_id)
     return {"status": True}
