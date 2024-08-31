@@ -5,9 +5,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
-
+from pydantic import field_validator
 
 load_dotenv(f"{Path(__file__).parent.parent.parent}/secrets/.env")
+
+
+DEFAULT_HOSTS = [
+    "http://127.0.0.1:5173/",
+    "http://localhost:5173/",
+]
 
 
 class Config:
@@ -24,6 +30,32 @@ class Config:
     ALGORITHM: str = "HS256"
     PWD_CONTEXT: CryptContext = CryptContext(schemes=["bcrypt"], deprecated="auto")
     OAUTH2_SCHEME: OAuth2PasswordBearer = OAuth2PasswordBearer("/api/v1/auth/token/")
+
+    ALLOWED_HOSTS: str | list = os.environ.get("ALLOWED_HOSTS")
+    ALLOWED_CREDENTIALS: bool = os.environ.get("ALLOWED_CREDENTIALS")
+    ALLOWED_METHODS: str = os.environ.get("ALLOWED_METHODS")
+    ALLOWED_HEADERS: str | list = os.environ.get("ALLOWED_HEADERS")
+
+    @field_validator("ALLOWED_HOSTS", mode="before", check_fields=False)
+    @classmethod
+    def split_allowed_hosts(cls, value):
+        if isinstance(value, str):
+            lst = value.split(",")
+            lst.extend(DEFAULT_HOSTS)
+            return lst
+        return value
+
+    @property
+    def get_list_allowed_methods(self) -> list[str]:
+        return self.ALLOWED_METHODS.split(",")
+
+    @field_validator("ALLOWED_HEADERS", mode="before", check_fields=False)
+    @classmethod
+    def split_allowed_headers(cls, value):
+        if isinstance(value, str):
+            lst = value.split(",")
+            return lst
+        return value
 
     REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
     REDIS_PORT = os.environ.get("REDIS_PORT", 6379)

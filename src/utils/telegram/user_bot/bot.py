@@ -170,7 +170,6 @@ class TelegramUserBot:
         last_name: str = "",
         about: str = "",
     ) -> bool:
-        print(first_name, last_name, about)
         await self.connect()
         status = False
         try:
@@ -182,6 +181,8 @@ class TelegramUserBot:
                 )
             )
             status = True
+            task = TaskService()
+            await task.update(task_id, TaskUpdateSchema(is_executed=True))
         except Exception as e:
             print(e)
         finally:
