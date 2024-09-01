@@ -1,10 +1,9 @@
 import asyncio
+
 from typing import Any
 
 from core.celery import celery_app
 from pydantic import UUID4
-
-from core.exceptions import exception
 from services.bot import BotService
 from utils.cache import cache
 from utils.telegram.user_bot.bot import TelegramUserBot
@@ -97,6 +96,7 @@ def leaving_channel(phone: str, channel_urls: list[str], task_id: UUID4):
 
 async def run_async_update_bio(phone: str, data: dict[str, Any], task_id: UUID4):
     from utils.telegram.user_bot.bot import TelegramUserBot
+
     bot = TelegramUserBot(phone)
     if not await bot.check_is_authorized():
         raise Exception("Бот не авторизован в телеграм")

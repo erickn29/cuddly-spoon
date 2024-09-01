@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from pydantic import field_validator
 
+
 load_dotenv(f"{Path(__file__).parent.parent.parent}/secrets/.env")
 
 

@@ -1,13 +1,16 @@
 from enum import Enum
 from typing import Literal
 
-from api.v1.bot_user.crud.schema import BotCreateInputSchema, BotUpdateDataSchema, \
-    BotUpdateInputSchema, TaskCreateSchema, UpdateBioSchema
-from core.exceptions import exception
+from api.v1.bot_user.crud.schema import (
+    BotCreateInputSchema,
+    BotUpdateDataSchema,
+    BotUpdateInputSchema,
+    TaskCreateSchema,
+    UpdateBioSchema,
+)
 from models.bot import Bot
-from pydantic import UUID4
-
 from models.task import Task
+from pydantic import UUID4
 from repositories.bot import BotRepository
 from services.base import BaseService
 from services.task import TaskService
@@ -90,10 +93,7 @@ class BotService(BaseService):
 
     @staticmethod
     async def process_channels(new: list[str], old: list[str]) -> dict:
-        process = {
-            "leave": [],
-            "join": []
-        }
+        process = {"leave": [], "join": []}
         for channel in new:
             if channel not in old:
                 process["join"].append(channel)

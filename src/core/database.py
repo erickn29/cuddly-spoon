@@ -38,7 +38,6 @@ class DatabaseHelper:
     @asynccontextmanager
     async def get_session(self) -> AsyncSession:
         async with self.session_factory() as session:
-            print(session)
             yield session
 
 

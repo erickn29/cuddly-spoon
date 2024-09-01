@@ -1,9 +1,8 @@
-from starlette.middleware.cors import CORSMiddleware
-
 from api.routes import router
 from core.config import cfg
 from core.exceptions import BaseHTTPException
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -12,13 +11,12 @@ app = FastAPI(
     docs_url="/swagger/" if cfg.DEBUG else None,
     redoc_url="/redoc/" if cfg.DEBUG else None,
 )
-print(cfg.ALLOWED_HOSTS)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cfg.ALLOWED_HOSTS,
     allow_credentials=cfg.ALLOWED_CREDENTIALS,
-    allow_methods=cfg.ALLOWED_METHODS,
+    allow_methods=cfg.get_list_allowed_methods,
     allow_headers=cfg.ALLOWED_HEADERS,
 )
 
