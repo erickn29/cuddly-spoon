@@ -148,3 +148,18 @@ class TaskCreateSchema(BaseModel):
 
 class TaskUpdateSchema(BaseModel):
     is_executed: bool = False
+
+
+class CommentInputSchema(BaseModel):
+    bot_id: UUID
+    post_url: str
+    text: str
+
+
+class CommentOutputSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    comment_id: UUID
+    bot_id: UUID
+    post_url: str
+    text: str
+    created_at: datetime

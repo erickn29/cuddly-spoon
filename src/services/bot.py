@@ -29,6 +29,11 @@ class BotService(BaseService):
         if bot := await self.repository.create(schema):
             if bot.is_active and not bot.is_stopped:
                 await self.bot_activate(bot.phone)
+                await cache.set(
+                    f"bot:{bot.phone}:comments",
+                    ";".join(schema.config.comment_text),
+                    60 * 60 * 24 * 365,
+                )
             return bot
         return
 
@@ -36,6 +41,11 @@ class BotService(BaseService):
         if bot := await self.repository.update(obj_id, data):
             if bot.is_stopped:
                 await self.bot_deactivate(bot.phone)
+            await cache.set(
+                f"bot:{bot.phone}:comments",
+                ";".join(data.config.comment_text),
+                60 * 60 * 24 * 365,
+            )
             return bot
         return
 

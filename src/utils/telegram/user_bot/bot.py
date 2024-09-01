@@ -1,11 +1,15 @@
 import asyncio
 import logging
+import random
 
 from pathlib import Path
 
-from api.v1.bot_user.crud.schema import TaskUpdateSchema
+from api.v1.bot_user.crud.schema import CommentInputSchema, TaskUpdateSchema
 from core.config import cfg
+from models.bot import Bot
 from pydantic import UUID4
+from services.bot import BotService
+from services.comment import CommentService
 from services.task import TaskService
 from telethon import TelegramClient
 from telethon.tl.functions.account import UpdateProfileRequest
@@ -108,20 +112,37 @@ class TelegramUserBot:
     async def start_comments(self) -> bool:
         await self.connect()
         messages_list = await self._get_new_messages_chat_id()
+        message_ = "ok"
+        if comments := await cache.get(f"bot:{self.phone}:comments"):
+            comments_list = [comment for comment in comments.split(";")]
+            message_ = random.choice(comments_list) or "ok"
+        bot_service = BotService()
+        bot_objs = await bot_service.fetch({"phone": self.phone})
+        if not bot_objs:
+            return False
+        bot_obj: Bot = bot_objs[0]
         for message in messages_list:
             try:
-                last_message_entity = message.get("last_message_entity")
-                if last_message_entity.is_reply:
-                    await self.client.send_message(
-                        entity=message.get("comment_group_id"),
-                        reply_to=last_message_entity.reply_to_msg_id,
-                        message="ну такое..",
-                    )
-                    continue
+                reply_to = message.get("last_message_entity")
+                if reply_to.is_reply:
+                    reply_to = reply_to.reply_to_msg_id
                 await self.client.send_message(
                     entity=message.get("comment_group_id"),
-                    reply_to=message.get("last_message_entity"),
-                    message="ну такое..",
+                    reply_to=reply_to,
+                    message=message_,
+                )
+                post_url = (
+                    f"https://t.me/"
+                    f"{message["last_message_entity"].sender.username}/"
+                    f"{message["last_message_entity"].fwd_from.channel_post}"
+                )
+                comment_service = CommentService()
+                await comment_service.create(
+                    CommentInputSchema(
+                        bot_id=bot_obj.bot_id,
+                        post_url=post_url,
+                        text=message_,
+                    )
                 )
             except Exception as e:
                 print(e)
