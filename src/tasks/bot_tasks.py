@@ -111,7 +111,7 @@ async def update_bio(phone: str, data: dict[str, Any], task_id: UUID4):
 
 
 @celery_app.task
-def leaving_channel(phone: str, data: dict[str, Any], task_id: UUID4):
+def updating_bio(phone: str, data: dict[str, Any], task_id: UUID4):
     loop = asyncio.get_event_loop()
     if loop.is_running():
         loop.create_task(update_bio(phone, data, task_id))

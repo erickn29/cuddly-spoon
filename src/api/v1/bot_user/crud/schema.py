@@ -6,15 +6,21 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class BotConfigInputSchema(BaseModel):
-    prompt: list[str]
-    comment_text: list[str]
+    prompt: list[str] = []
+    comment_text: list[str] = []
     channels: list[str] = []
+    bio: dict[str, str] = {
+        "first_name": "",
+        "last_name": "",
+        "about": "",
+    }
 
 
 class BotConfigOutputSchema(BaseModel):
     prompt: list[str]
     comment_text: list[str]
     channels: list[str]
+    bio: dict[str, str]
 
 
 class BotCreateInputSchema(BaseModel):

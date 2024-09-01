@@ -19,11 +19,14 @@ from api.v1.bot_user.crud.schema import (
 )
 from core.exceptions import exception
 from fastapi import APIRouter
+
+from models.bot import Bot
+from models.task import Task
 from models.user import User
 from services.bot import BotService, ActionChannels
 from services.task import TaskService
 from services.user import UserService
-from tasks.bot_tasks import joining_channel, leaving_channel
+from tasks.bot_tasks import joining_channel, leaving_channel, updating_bio
 from utils.telegram.user_bot.bot import TelegramUserBot
 
 
@@ -68,6 +71,34 @@ async def create(schema: BotCreateInputSchema):
 @router.put("/", status_code=201, response_model=BotUpdateOutputSchema)
 async def update(schema: BotUpdateInputSchema):
     bot_service = BotService()
+    bot_object: Bot = await bot_service.get(schema.bot_id)
+    if not bot_object:
+        raise exception(404)
+    if set(schema.data.config.bio.values()) != set(bot_object.config["bio"].values()):
+        task_id = await bot_service.update_bot_bio(bot_object, schema)
+        updating_bio.delay(bot_object.phone, schema.data.config.bio, task_id)
+    if set(schema.data.config.channels) != set(bot_object.config["channels"]):
+        channels = await bot_service.process_channels(
+            schema.data.config.channels, bot_object.config["channels"]
+        )
+        if channels.get("leave"):
+            task = TaskService()
+            task_obj: Task = await task.create(
+                TaskCreateSchema(
+                    bot_id=bot_object.bot_id,
+                    data=LeaveChannelSchema(channels=channels.get("leave")),
+                )
+            )
+            leaving_channel.delay(bot_object.phone, channels["leave"], task_obj.task_id)
+        if channels.get("join"):
+            task = TaskService()
+            task_obj: Task = await task.create(
+                TaskCreateSchema(
+                    bot_id=bot_object.bot_id,
+                    data=JoinChannelSchema(channels=channels.get("join")),
+                )
+            )
+            joining_channel.delay(bot_object.phone, channels["join"], task_obj.task_id)
     result = await bot_service.update(schema.bot_id, schema.data)
     return result
 
@@ -132,21 +163,22 @@ async def leave_channel(schema: BotLeaveChannelInputSchema):
 
 @router.post("/task/update-bio/")
 async def update_bio(schema: BotUpdateBioInputSchema):
-    bot_service = BotService()
-    bot_object = await bot_service.get(schema.bot_id)
-    if not bot_object:
-        raise exception(404)
-    task = TaskService()
-    bio_dict = {
-        "first_name": schema.first_name,
-        "last_name": schema.last_name,
-        "about": schema.about,
-    }
-    task_obj = await task.create(
-        TaskCreateSchema(
-            bot_id=bot_object.bot_id,
-            data=UpdateBioSchema(bio=bio_dict),
-        )
-    )
-    leaving_channel.delay(bot_object.phone, bio_dict, task_obj.task_id)
+    # bot_service = BotService()
+    # bot_object: Bot = await bot_service.get(schema.bot_id)
+    # if not bot_object:
+    #     raise exception(404)
+    # task = TaskService()
+    # bio_dict = {
+    #     "first_name": schema.first_name,
+    #     "last_name": schema.last_name,
+    #     "about": schema.about,
+    # }
+    # await bot_service.update_bio(bot_object, bio_dict)
+    # task_obj = await task.create(
+    #     TaskCreateSchema(
+    #         bot_id=bot_object.bot_id,
+    #         data=UpdateBioSchema(bio=bio_dict),
+    #     )
+    # )
+    # leaving_channel.delay(bot_object.phone, bio_dict, task_obj.task_id)
     return {"status": True}

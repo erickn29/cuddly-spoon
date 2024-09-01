@@ -1,11 +1,16 @@
 from enum import Enum
 from typing import Literal
 
-from api.v1.bot_user.crud.schema import BotCreateInputSchema, BotUpdateDataSchema
+from api.v1.bot_user.crud.schema import BotCreateInputSchema, BotUpdateDataSchema, \
+    BotUpdateInputSchema, TaskCreateSchema, UpdateBioSchema
+from core.exceptions import exception
 from models.bot import Bot
 from pydantic import UUID4
+
+from models.task import Task
 from repositories.bot import BotRepository
 from services.base import BaseService
+from services.task import TaskService
 from utils.cache import cache
 
 
@@ -82,3 +87,28 @@ class BotService(BaseService):
                     bot_config["channels"].append(channel)
         update_schema = BotUpdateDataSchema(config=bot_config)
         await self.update(bot_object.bot_id, update_schema)
+
+    @staticmethod
+    async def process_channels(new: list[str], old: list[str]) -> dict:
+        process = {
+            "leave": [],
+            "join": []
+        }
+        for channel in new:
+            if channel not in old:
+                process["join"].append(channel)
+        for channel in old:
+            if channel not in new:
+                process["leave"].append(channel)
+        return process
+
+    @staticmethod
+    async def update_bot_bio(bot_object: Bot, schema: BotUpdateInputSchema) -> UUID4:
+        task = TaskService()
+        task_obj: Task = await task.create(
+            TaskCreateSchema(
+                bot_id=bot_object.bot_id,
+                data=UpdateBioSchema(bio=schema.data.config.bio),
+            )
+        )
+        return task_obj.task_id
