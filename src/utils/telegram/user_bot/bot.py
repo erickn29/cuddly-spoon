@@ -45,6 +45,7 @@ class TelegramUserBot:
 
     async def check_is_authorized(self) -> bool:
         await self.connect()
+        me = await self.client.get_me()
         if not await self.client.is_user_authorized():
             await self.disconnect()
             return False
@@ -93,9 +94,14 @@ class TelegramUserBot:
                 and dialog.unread_count > 0
                 and dialog.message.replies.comments
             ):
-                messages = await self.client.get_messages(
-                    dialog.message.replies.channel_id
-                )
+                try:
+                    messages = await self.client.get_messages(
+                        dialog.message.replies.channel_id
+                    )
+                except Exception as e:
+                    print(e)
+                    print(dialog.name)
+                    continue
                 if not messages:
                     continue
                 last_channel_message = messages[-1]
