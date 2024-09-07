@@ -3,6 +3,10 @@ import logging
 import random
 
 from pathlib import Path
+from typing import List
+
+from telethon.hints import Entity
+from telethon.tl.custom import Dialog
 
 from api.v1.bot_user.crud.schema import CommentInputSchema, TaskUpdateSchema
 from core.config import cfg
@@ -14,9 +18,9 @@ from services.task import TaskService
 from telethon import TelegramClient
 from telethon.tl.functions.account import UpdateProfileRequest
 from telethon.tl.functions.channels import JoinChannelRequest
-from telethon.tl.types import User
+from telethon.tl.types import User, Message, Chat
 from utils.cache import cache
-
+from utils.requests import fetch_url_post
 
 logging.basicConfig(
     format="[%(levelname) 5s/%(asctime)s] %(name)s: %(message)s", level=logging.WARNING
@@ -83,72 +87,149 @@ class TelegramUserBot:
             await self.disconnect()
         return is_response
 
-    async def _get_new_messages_chat_id(self):
+    async def _get_last_chat_messages(self, dialog: Dialog) -> List[Message]:
+        try:
+            messages = await self.client.get_messages(
+                dialog.message.replies.channel_id
+            )
+            return messages
+        except Exception as e:
+            print(e)
+            print(dialog.name)
+            return []
+
+    async def _get_channel_dialogs_unread(self) -> List[Dialog]:
         dialogs = await self.client.get_dialogs()
+        return [
+            dialog for dialog in dialogs
+            if all([
+                dialog.is_channel,
+                dialog.message,
+                dialog.message.replies,
+                dialog.unread_count > 0
+            ])
+        ]
+
+    async def _get_new_messages_chat_id(self):
+        dialogs = await self._get_channel_dialogs_unread()
         dialogs_list = []
         for dialog in dialogs:
-            if (
-                dialog.is_channel
-                and dialog.message
-                and dialog.message.replies
-                and dialog.unread_count > 0
-                and dialog.message.replies.comments
-            ):
-                try:
-                    messages = await self.client.get_messages(
-                        dialog.message.replies.channel_id
-                    )
-                except Exception as e:
-                    print(e)
-                    print(dialog.name)
-                    continue
-                if not messages:
-                    continue
-                last_channel_message = messages[-1]
-                await self.client.send_read_acknowledge(dialog.entity.id)
-                dialogs_list.append(
-                    {
-                        "chat_id": dialog.entity.id,
-                        "comment_group_id": dialog.message.replies.channel_id,
-                        "last_message_entity": last_channel_message,
-                    }
-                )
+            messages = await self._get_last_chat_messages(dialog)
+            if not messages:
+                continue
+            last_channel_message: Message = messages[-1]
+            await self.client.send_read_acknowledge(dialog.entity.id)
+            dialogs_list.append(
+                {
+                    "chat_id": dialog.entity.id,
+                    "comment_group_id": dialog.message.replies.channel_id,
+                    "last_message_entity": last_channel_message,
+                    "text": dialog.message.text,
+                }
+            )
         return dialogs_list
+
+    @staticmethod
+    def _get_post_url(message: dict) -> str:
+        post_id = "unknown"
+        channel_name: Chat = message["chat_id"]
+        message_obj: Message = message["last_message_entity"]
+        if message_obj and message_obj.fwd_from:
+            post_id = message_obj.fwd_from.channel_post
+        # post_id = message["last_message_entity"].fwd_from.channel_post if \
+        #     message["last_message_entity"].fwd_from else ""  # TODO разобраться!
+        if message_obj.fwd_from.from_name:
+            channel_name = message_obj.fwd_from.from_name
+        post_url = (
+            f"https://t.me/"
+            f"{channel_name}/"
+            f"{post_id}"
+        )
+        return post_url
+
+    async def _log_bot_comment(self, message: dict, comment_text: str) -> None:
+        bot_service = BotService()
+        bot_objs = await bot_service.fetch({"phone": self.phone})
+        if not bot_objs:
+            return
+        bot_obj: Bot = bot_objs[0]
+        comment_service = CommentService()
+        post_url = self._get_post_url(message)
+        await comment_service.create(
+            CommentInputSchema(
+                bot_id=bot_obj.bot_id,
+                post_url=post_url,
+                text=comment_text,
+            )
+        )
+
+    async def _get_comment_method(self) -> str:
+        if prompt := await cache.get(f"bot:{self.phone}:prompt"):
+            return prompt.split(";")[0]
+        if comments := await cache.get(f"bot:{self.phone}:comments"):
+            comments_list = [comment for comment in comments.split(";")]
+            return random.choice(comments_list) or "ok"
+        return "ok"
+
+    async def _get_ai_message(self, prompt: str, message: dict) -> str:
+        content = (f"напиши осмысленный нейтральный комментарий к этой новости, "
+                   f"максимум 10 слов. Новость: {message.get('text')}")
+        response = await fetch_url_post(
+            "http://localhost:1234/v1/chat/completions",
+            {
+                "messages": [
+                    {"role": "system",
+                     "content": prompt},
+                    {
+                        "role": "user",
+                        "content": content
+                    }
+                ],
+                "temperature": 0.7,
+                "max_tokens": -1,
+                "stream": False
+            }
+        )
+        return response
 
     async def start_comments(self) -> bool:
         await self.connect()
         messages_list = await self._get_new_messages_chat_id()
-        message_ = "ok"
-        if comments := await cache.get(f"bot:{self.phone}:comments"):
-            comments_list = [comment for comment in comments.split(";")]
-            message_ = random.choice(comments_list) or "ok"
-        bot_service = BotService()
-        bot_objs = await bot_service.fetch({"phone": self.phone})
-        if not bot_objs:
-            return False
-        bot_obj: Bot = bot_objs[0]
+        message_ = await self._get_comment_method()
         for message in messages_list:
             try:
+                if prompt:
+                    response = await fetch_url_post(
+                        "http://localhost:1234/v1/chat/completions",
+                        {
+                            "messages": [
+                                {"role": "system",
+                                 "content": prompt},
+                                {
+                                    "role": "user",
+                                    "content": f"напиши лсмысленный нейтральный комментарий к "
+                                               f"этой новости, максимум 10 слов. Новость: {message.get('text')}"
+                                }
+                            ],
+                            "temperature": 0.7,
+                            "max_tokens": -1,
+                            "stream": False
+                        }
+                    )
+                    try:
+                        message_ = response["choices"][0]["message"]["content"].replace(
+                            "\"", "").replace("'", "").replace("«", "").replace("»", "").strip()
+                    except (KeyError, IndexError) as e:
+                        print(e)
                 reply_to = message.get("last_message_entity")
+                if not reply_to:
+                    continue
                 if reply_to.is_reply:
                     reply_to = reply_to.reply_to_msg_id
                 await self.client.send_message(
                     entity=message.get("comment_group_id"),
                     reply_to=reply_to,
                     message=message_,
-                )
-                post_url = (
-                    f"https://t.me/"
-                    f"{message["last_message_entity"].sender.username}/"
-                    f"{message["last_message_entity"].fwd_from.channel_post}"
-                )
-                comment_service = CommentService()
-                await comment_service.create(
-                    CommentInputSchema(
-                        bot_id=bot_obj.bot_id,
-                        post_url=post_url,
-                        text=message_,
-                    )
                 )
             except Exception as e:
                 print(e)
@@ -191,11 +272,11 @@ class TelegramUserBot:
         return True
 
     async def update_bio(
-        self,
-        task_id: UUID4,
-        first_name: str = "",
-        last_name: str = "",
-        about: str = "",
+            self,
+            task_id: UUID4,
+            first_name: str = "",
+            last_name: str = "",
+            about: str = "",
     ) -> bool:
         await self.connect()
         status = False

@@ -34,6 +34,11 @@ class BotService(BaseService):
                     ";".join(schema.config.comment_text),
                     60 * 60 * 24 * 365,
                 )
+                await cache.set(
+                    f"bot:{bot.phone}:prompt",
+                    ";".join(schema.config.comment_text),
+                    60 * 60 * 24 * 365,
+                )
             return bot
         return
 
@@ -44,6 +49,11 @@ class BotService(BaseService):
             await cache.set(
                 f"bot:{bot.phone}:comments",
                 ";".join(data.config.comment_text),
+                60 * 60 * 24 * 365,
+            )
+            await cache.set(
+                f"bot:{bot.phone}:prompt",
+                ";".join(data.config.prompt),
                 60 * 60 * 24 * 365,
             )
             return bot

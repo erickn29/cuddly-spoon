@@ -112,3 +112,9 @@ async def item_list(schema: BotListInputSchema):
     user_service = UserService()
     user: User = await user_service.get(schema.user_id)
     return BotListOutputSchema(bots=user.bots)
+
+
+@router.post("/comment/{phone}/", status_code=200, response_model=BotListOutputSchema)
+async def item_list(phone: str):
+    bot = TelegramUserBot(phone)
+    await bot.start_comments()

@@ -10,6 +10,7 @@ from utils.telegram.user_bot.bot import TelegramUserBot
 
 
 async def run_async_commenting(phone: str):
+    print("start commenting ", phone)
     bot = TelegramUserBot(phone)
     if not await bot.check_is_authorized():
         raise Exception("Бот не авторизован в телеграм")
