@@ -3,10 +3,6 @@ import logging
 import random
 
 from pathlib import Path
-from typing import List
-
-from telethon.hints import Entity
-from telethon.tl.custom import Dialog
 
 from api.v1.bot_user.crud.schema import CommentInputSchema, TaskUpdateSchema
 from core.config import cfg
@@ -16,11 +12,13 @@ from services.bot import BotService
 from services.comment import CommentService
 from services.task import TaskService
 from telethon import TelegramClient
+from telethon.tl.custom import Dialog
 from telethon.tl.functions.account import UpdateProfileRequest
 from telethon.tl.functions.channels import JoinChannelRequest
-from telethon.tl.types import User, Message, Chat
+from telethon.tl.types import Chat, Message, User
 from utils.cache import cache
 from utils.requests import fetch_url_post
+
 
 logging.basicConfig(
     format="[%(levelname) 5s/%(asctime)s] %(name)s: %(message)s", level=logging.WARNING
@@ -49,7 +47,7 @@ class TelegramUserBot:
 
     async def check_is_authorized(self) -> bool:
         await self.connect()
-        me = await self.client.get_me()
+        # await self.client.get_me()
         if not await self.client.is_user_authorized():
             await self.disconnect()
             return False
@@ -57,6 +55,14 @@ class TelegramUserBot:
         return True
 
     async def sign_in_with_code(self, code: str) -> bool:
+        """Авторизует бота в тг
+
+        Args:
+            code (str): код от тг
+
+        Returns:
+            bool: результат действия
+        """
         await self.connect()
         phone_code_hash = await cache.get(self.phone)
         is_user = False
@@ -73,7 +79,12 @@ class TelegramUserBot:
             await self.disconnect()
         return is_user
 
-    async def request_verification_code(self):
+    async def request_verification_code(self) -> bool:
+        """Запрашивает код подтверждение для авторизации
+
+        Returns:
+            bool: результат действия
+        """
         await self.connect()
         is_response = False
         try:
@@ -87,30 +98,49 @@ class TelegramUserBot:
             await self.disconnect()
         return is_response
 
-    async def _get_last_chat_messages(self, dialog: Dialog) -> List[Message]:
+    async def _get_last_chat_messages(self, dialog: Dialog) -> list[Message]:
+        """Возвращает последний пост в канале списком
+
+        Args:
+            dialog (Dialog): диалог (канал или чат)
+
+        Returns:
+            list[Message]: список из постов (по умолчанию последний)
+        """
         try:
-            messages = await self.client.get_messages(
-                dialog.message.replies.channel_id
-            )
+            messages = await self.client.get_messages(dialog.message.replies.channel_id)
             return messages
         except Exception as e:
             print(e)
             print(dialog.name)
             return []
 
-    async def _get_channel_dialogs_unread(self) -> List[Dialog]:
+    async def _get_channel_dialogs_unread(self) -> list[Dialog]:
+        """Возвращает каналы с непрочитанными сообщениями
+
+        Returns:
+            list[Dialog]: список чатов и каналов
+        """
         dialogs = await self.client.get_dialogs()
         return [
-            dialog for dialog in dialogs
-            if all([
-                dialog.is_channel,
-                dialog.message,
-                dialog.message.replies,
-                dialog.unread_count > 0
-            ])
+            dialog
+            for dialog in dialogs
+            if all(
+                [
+                    dialog.is_channel,
+                    dialog.message,
+                    dialog.message.replies,
+                    dialog.unread_count > 0,
+                ]
+            )
         ]
 
-    async def _get_new_messages_chat_id(self):
+    async def _get_new_messages_chat_id(self) -> list[dict[str, any]]:
+        """Возвращает список словарей с данными, необходимыми для комментария
+
+        Returns:
+            list[dict[str, any]]: _description_
+        """
         dialogs = await self._get_channel_dialogs_unread()
         dialogs_list = []
         for dialog in dialogs:
@@ -131,6 +161,7 @@ class TelegramUserBot:
 
     @staticmethod
     def _get_post_url(message: dict) -> str:
+        """Возвращает ссылку на пост в канале"""
         post_id = "unknown"
         channel_name: Chat = message["chat_id"]
         message_obj: Message = message["last_message_entity"]
@@ -140,14 +171,11 @@ class TelegramUserBot:
         #     message["last_message_entity"].fwd_from else ""  # TODO разобраться!
         if message_obj.fwd_from.from_name:
             channel_name = message_obj.fwd_from.from_name
-        post_url = (
-            f"https://t.me/"
-            f"{channel_name}/"
-            f"{post_id}"
-        )
+        post_url = f"https://t.me/" f"{channel_name}/" f"{post_id}"
         return post_url
 
     async def _log_bot_comment(self, message: dict, comment_text: str) -> None:
+        """Записывает комментарий в БД"""
         bot_service = BotService()
         bot_objs = await bot_service.fetch({"phone": self.phone})
         if not bot_objs:
@@ -163,69 +191,64 @@ class TelegramUserBot:
             )
         )
 
-    async def _get_comment_method(self) -> str:
+    async def _get_message_text(self, message: dict) -> str:
+        """Возвращает текст комментария"""
         if prompt := await cache.get(f"bot:{self.phone}:prompt"):
-            return prompt.split(";")[0]
+            return await self._get_ai_message(prompt.split(";")[0], message)
         if comments := await cache.get(f"bot:{self.phone}:comments"):
             comments_list = [comment for comment in comments.split(";")]
             return random.choice(comments_list) or "ok"
         return "ok"
 
-    async def _get_ai_message(self, prompt: str, message: dict) -> str:
-        content = (f"напиши осмысленный нейтральный комментарий к этой новости, "
-                   f"максимум 10 слов. Новость: {message.get('text')}")
+    @staticmethod
+    async def _get_ai_message(prompt: str, message: dict) -> str:
+        """Получает комментарий от AI"""
+        content = (
+            f"напиши осмысленный нейтральный комментарий к этой новости, "
+            f"максимум 10 слов. Новость: {message.get('text')}"
+        )
         response = await fetch_url_post(
             "http://localhost:1234/v1/chat/completions",
             {
                 "messages": [
-                    {"role": "system",
-                     "content": prompt},
-                    {
-                        "role": "user",
-                        "content": content
-                    }
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": content},
                 ],
                 "temperature": 0.7,
                 "max_tokens": -1,
-                "stream": False
-            }
+                "stream": False,
+            },
         )
-        return response
+        if (
+            response
+            and response.get("choices")
+            and response["choices"][0].get("message")
+            and response["choices"][0]["message"].get("content")
+        ):
+            message_ = (
+                response["choices"][0]["message"]["content"]
+                .replace('"', "")
+                .replace("'", "")
+                .replace("«", "")
+                .replace("»", "")
+                .strip()
+            )
+            return message_
 
     async def start_comments(self) -> bool:
+        """Комментирует новые посты"""
         await self.connect()
         messages_list = await self._get_new_messages_chat_id()
-        message_ = await self._get_comment_method()
         for message in messages_list:
+            message_ = await self._get_message_text()
+            if not message_:
+                continue
+            reply_to = message.get("last_message_entity")
+            if not reply_to:
+                continue
+            if reply_to.is_reply:
+                reply_to = reply_to.reply_to_msg_id
             try:
-                if prompt:
-                    response = await fetch_url_post(
-                        "http://localhost:1234/v1/chat/completions",
-                        {
-                            "messages": [
-                                {"role": "system",
-                                 "content": prompt},
-                                {
-                                    "role": "user",
-                                    "content": f"напиши лсмысленный нейтральный комментарий к "
-                                               f"этой новости, максимум 10 слов. Новость: {message.get('text')}"
-                                }
-                            ],
-                            "temperature": 0.7,
-                            "max_tokens": -1,
-                            "stream": False
-                        }
-                    )
-                    try:
-                        message_ = response["choices"][0]["message"]["content"].replace(
-                            "\"", "").replace("'", "").replace("«", "").replace("»", "").strip()
-                    except (KeyError, IndexError) as e:
-                        print(e)
-                reply_to = message.get("last_message_entity")
-                if not reply_to:
-                    continue
-                if reply_to.is_reply:
-                    reply_to = reply_to.reply_to_msg_id
                 await self.client.send_message(
                     entity=message.get("comment_group_id"),
                     reply_to=reply_to,
@@ -233,7 +256,6 @@ class TelegramUserBot:
                 )
             except Exception as e:
                 print(e)
-                continue
         await self.disconnect()
         return True
 
@@ -272,11 +294,11 @@ class TelegramUserBot:
         return True
 
     async def update_bio(
-            self,
-            task_id: UUID4,
-            first_name: str = "",
-            last_name: str = "",
-            about: str = "",
+        self,
+        task_id: UUID4,
+        first_name: str = "",
+        last_name: str = "",
+        about: str = "",
     ) -> bool:
         await self.connect()
         status = False

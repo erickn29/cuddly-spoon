@@ -1,5 +1,6 @@
 # Custom
 .idea/
+*.session
 
 # Config folder
 .secrets/
