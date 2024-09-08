@@ -1,3 +1,5 @@
+import uvicorn
+
 from api.routes import router
 from core.config import cfg
 from core.exceptions import BaseHTTPException
@@ -32,3 +34,7 @@ async def http_exception_handler(
         status_code=exc.status_code,
         content=exc.get_response(),
     )
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -18,8 +18,8 @@ DEFAULT_HOSTS = [
 
 
 class Config:
-    TELEGRAM_API_ID = os.environ.get("TELEGRAM_API_ID")
-    TELEGRAM_API_HASH = os.environ.get("TELEGRAM_API_HASH")
+    TELEGRAM_API_ID: int = os.environ.get("TELEGRAM_API_ID")
+    TELEGRAM_API_HASH: str = os.environ.get("TELEGRAM_API_HASH")
 
     DEBUG = os.environ.get("DEBUG", False)
     SECRET = os.environ.get("SECRET", "key")

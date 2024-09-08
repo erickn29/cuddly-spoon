@@ -6,7 +6,6 @@ from pathlib import Path
 
 from api.v1.bot_user.crud.schema import CommentInputSchema, TaskUpdateSchema
 from core.config import cfg
-from models.bot import Bot
 from pydantic import UUID4
 from services.bot import BotService
 from services.comment import CommentService
@@ -41,9 +40,9 @@ class TelegramUserBot:
         if not self.client.is_connected():
             await self.client.connect()
 
-    async def disconnect(self) -> None:
+    async def disconnect(self):
         if self.client.is_connected():
-            await self.client.disconnect()
+            await self.client.disconnect()  # type: ignore
 
     async def check_is_authorized(self) -> bool:
         await self.connect()
@@ -98,23 +97,6 @@ class TelegramUserBot:
             await self.disconnect()
         return is_response
 
-    async def _get_last_chat_messages(self, dialog: Dialog) -> list[Message]:
-        """Возвращает последний пост в канале списком
-
-        Args:
-            dialog (Dialog): диалог (канал или чат)
-
-        Returns:
-            list[Message]: список из постов (по умолчанию последний)
-        """
-        try:
-            messages = await self.client.get_messages(dialog.message.replies.channel_id)
-            return messages
-        except Exception as e:
-            print(e)
-            print(dialog.name)
-            return []
-
     async def _get_channel_dialogs_unread(self) -> list[Dialog]:
         """Возвращает каналы с непрочитанными сообщениями
 
@@ -135,7 +117,26 @@ class TelegramUserBot:
             )
         ]
 
-    async def _get_new_messages_chat_id(self) -> list[dict[str, any]]:
+    async def _get_last_chat_messages(self, dialog: Dialog) -> list[Message]:
+        """Возвращает последний пост в канале списком
+
+        Args:
+            dialog (Dialog): диалог (канал или чат)
+
+        Returns:
+            list[Message]: список из постов (по умолчанию последний)
+        """
+        try:
+            if not dialog.entity.broadcast:
+                return []
+            messages = await self.client.get_messages(dialog)
+            return messages  # type: ignore
+        except Exception as e:
+            print(e)
+            print(dialog.name)
+            return []
+
+    async def _get_new_messages_chat_id(self) -> list[dict[str, any]]:  # type: ignore
         """Возвращает список словарей с данными, необходимыми для комментария
 
         Returns:
@@ -151,7 +152,11 @@ class TelegramUserBot:
             await self.client.send_read_acknowledge(dialog.entity.id)
             dialogs_list.append(
                 {
-                    "chat_id": dialog.entity.id,
+                    "chat_id": (
+                        dialog.entity.username
+                        if hasattr(dialog.entity, "username")
+                        else dialog.entity.id
+                    ),
                     "comment_group_id": dialog.message.replies.channel_id,
                     "last_message_entity": last_channel_message,
                     "text": dialog.message.text,
@@ -165,12 +170,12 @@ class TelegramUserBot:
         post_id = "unknown"
         channel_name: Chat = message["chat_id"]
         message_obj: Message = message["last_message_entity"]
-        if message_obj and message_obj.fwd_from:
+        if (
+            message_obj
+            and message_obj.fwd_from
+            and hasattr(message_obj.fwd_from, "channel_post")
+        ):
             post_id = message_obj.fwd_from.channel_post
-        # post_id = message["last_message_entity"].fwd_from.channel_post if \
-        #     message["last_message_entity"].fwd_from else ""  # TODO разобраться!
-        if message_obj.fwd_from.from_name:
-            channel_name = message_obj.fwd_from.from_name
         post_url = f"https://t.me/" f"{channel_name}/" f"{post_id}"
         return post_url
 
@@ -180,7 +185,7 @@ class TelegramUserBot:
         bot_objs = await bot_service.fetch({"phone": self.phone})
         if not bot_objs:
             return
-        bot_obj: Bot = bot_objs[0]
+        bot_obj = bot_objs[0]
         comment_service = CommentService()
         post_url = self._get_post_url(message)
         await comment_service.create(
@@ -191,7 +196,7 @@ class TelegramUserBot:
             )
         )
 
-    async def _get_message_text(self, message: dict) -> str:
+    async def _get_message_text(self, message: dict) -> str | None:
         """Возвращает текст комментария"""
         if prompt := await cache.get(f"bot:{self.phone}:prompt"):
             return await self._get_ai_message(prompt.split(";")[0], message)
@@ -201,7 +206,7 @@ class TelegramUserBot:
         return "ok"
 
     @staticmethod
-    async def _get_ai_message(prompt: str, message: dict) -> str:
+    async def _get_ai_message(prompt: str, message: dict) -> str | None:
         """Получает комментарий от AI"""
         content = (
             f"напиши осмысленный нейтральный комментарий к этой новости, "
@@ -238,22 +243,18 @@ class TelegramUserBot:
     async def start_comments(self) -> bool:
         """Комментирует новые посты"""
         await self.connect()
-        messages_list = await self._get_new_messages_chat_id()
-        for message in messages_list:
-            message_ = await self._get_message_text()
+        posts_list = await self._get_new_messages_chat_id()
+        for post in posts_list:
+            message_ = await self._get_message_text(message=post)
             if not message_:
                 continue
-            reply_to = message.get("last_message_entity")
-            if not reply_to:
-                continue
-            if reply_to.is_reply:
-                reply_to = reply_to.reply_to_msg_id
             try:
                 await self.client.send_message(
-                    entity=message.get("comment_group_id"),
-                    reply_to=reply_to,
+                    entity=post.get("chat_id"),  # type: ignore
+                    comment_to=post.get("last_message_entity"),  # type: ignore
                     message=message_,
                 )
+                await self._log_bot_comment(message=post, comment_text=message_)
             except Exception as e:
                 print(e)
         await self.disconnect()
@@ -263,7 +264,7 @@ class TelegramUserBot:
         await self.connect()
         for channel_url in channel_urls:
             try:
-                await self.client(JoinChannelRequest(channel=channel_url))
+                await self.client(JoinChannelRequest(channel=channel_url))  # type: ignore
             except Exception as e:
                 print(e)
                 continue
@@ -286,12 +287,12 @@ class TelegramUserBot:
         await task.update(task_id, TaskUpdateSchema(is_executed=True))
         await self.disconnect()
 
-    async def send_message(self, entity: str, message: str) -> bool:
-        await self.connect()
-        await self.client.start(self.phone)
-        await self.client.send_message(entity, message)
-        await self.disconnect()
-        return True
+    # async def send_message(self, entity: str, message: str) -> bool:
+    #     await self.connect()
+    #     await self.client.start(self.phone)
+    #     await self.client.send_message(entity, message)
+    #     await self.disconnect()
+    #     return True
 
     async def update_bio(
         self,
